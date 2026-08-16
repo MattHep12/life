@@ -32,8 +32,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	stockVests, err := db.GetStockVests()
+	if err != nil {
+		panic(err)
+	}
 
-	m := app.NewModel(db, accounts, payrollStatements, monthlyNetIncomeCents)
+	m := app.NewModel(db, accounts, payrollStatements, stockVests, monthlyNetIncomeCents)
 
 	p := tea.NewProgram(m)
 

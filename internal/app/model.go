@@ -8,6 +8,9 @@ import (
 )
 
 type Model struct {
+	width  int
+	height int
+
 	cursor      int
 	currentView view
 	choices     []menuItem
@@ -25,6 +28,9 @@ type Model struct {
 
 	payrollStatements []models.PayrollStatement
 	payrollCursor     int
+	payrollDeleteMode bool
+	payrollError      string
+	stockVests        []models.StockVest
 
 	db *storage.Database
 
@@ -63,8 +69,10 @@ const (
 )
 
 type menuItem struct {
-	label string
-	view  view
+	label       string
+	description string
+	icon        string
+	view        view
 }
 
 func (m Model) netWorth() float64 {
@@ -80,13 +88,18 @@ func NewModel(
 	db *storage.Database,
 	accounts []models.Account,
 	payrollStatements []models.PayrollStatement,
+	stockVests []models.StockVest,
 	monthlyNetIncomeCents int64,
 ) Model {
 	nameInput := textinput.New()
 	nameInput.Placeholder = "Account name"
+	nameInput.Prompt = "› "
+	nameInput.SetWidth(42)
 
 	balanceInput := textinput.New()
-	balanceInput.Placeholder = "Balance"
+	balanceInput.Placeholder = "0.00"
+	balanceInput.Prompt = "$ "
+	balanceInput.SetWidth(42)
 
 	return Model{
 		db:          db,
@@ -94,12 +107,12 @@ func NewModel(
 		currentView: menuView,
 
 		choices: []menuItem{
-			{label: "Dashboard View", view: dashboardView},
-			{label: "Tasks View", view: tasksView},
-			{label: "Habits View", view: habitsView},
-			{label: "Finances View", view: financesView},
-			{label: "Payroll History", view: payrollView},
-			{label: "Stats View", view: statsView},
+			{label: "Dashboard", description: "Your life at a glance", icon: "◆", view: dashboardView},
+			{label: "Tasks", description: "Plan and complete your day", icon: "✓", view: tasksView},
+			{label: "Habits", description: "Build consistent routines", icon: "↻", view: habitsView},
+			{label: "Finances", description: "Accounts and net worth", icon: "$", view: financesView},
+			{label: "Payroll History", description: "Income, taxes, and deductions", icon: "▤", view: payrollView},
+			{label: "Stats", description: "Trends across your life", icon: "↗", view: statsView},
 		},
 
 		tasks: []models.Task{
@@ -111,6 +124,7 @@ func NewModel(
 		accountName:       nameInput,
 		accountBalance:    balanceInput,
 		payrollStatements: payrollStatements,
+		stockVests:        stockVests,
 
 		habitCompletion:       82,
 		activeGoals:           3,

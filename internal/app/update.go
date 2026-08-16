@@ -5,6 +5,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -17,6 +18,14 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		inputWidth := min(48, max(20, msg.Width-12))
+		m.accountName.SetWidth(inputWidth)
+		m.accountBalance.SetWidth(inputWidth)
+		return m, nil
+
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "ctrl+c":
@@ -28,6 +37,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.financeMode = financeListMode
 				m.financeError = ""
 				m.resetAccountInputs()
+				return m, nil
+			}
+			if m.currentView == payrollView && m.payrollDeleteMode {
+				m.payrollDeleteMode = false
+				m.payrollError = ""
 				return m, nil
 			}
 
@@ -266,9 +280,55 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case payrollView:
+			if m.payrollDeleteMode {
+				switch msg.String() {
+				case "n", "q":
+					m.payrollDeleteMode = false
+					m.payrollError = ""
+					return m, nil
+
+				case "y":
+					if len(m.payrollStatements) == 0 || m.payrollCursor >= len(m.payrollStatements) {
+						m.payrollDeleteMode = false
+						return m, nil
+					}
+
+					statement := m.payrollStatements[m.payrollCursor]
+					if err := m.db.DeletePayrollStatement(statement.ID); err != nil {
+						m.payrollError = fmt.Sprintf("Could not delete statement: %v", err)
+						return m, nil
+					}
+
+					m.payrollStatements = append(
+						m.payrollStatements[:m.payrollCursor],
+						m.payrollStatements[m.payrollCursor+1:]...,
+					)
+					if m.payrollCursor >= len(m.payrollStatements) && m.payrollCursor > 0 {
+						m.payrollCursor--
+					}
+
+					now := time.Now()
+					m.monthlyNetIncomeCents = 0
+					for _, payroll := range m.payrollStatements {
+						if payroll.PayDate.Year() == now.Year() && payroll.PayDate.Month() == now.Month() {
+							m.monthlyNetIncomeCents += payroll.NetCents
+						}
+					}
+					m.payrollDeleteMode = false
+					m.payrollError = ""
+					return m, nil
+				}
+			}
+
 			switch msg.String() {
 			case "q":
 				m.currentView = menuView
+
+			case "d":
+				if len(m.payrollStatements) > 0 {
+					m.payrollDeleteMode = true
+					m.payrollError = ""
+				}
 
 			case "up", "w":
 				if m.payrollCursor > 0 {
@@ -278,6 +338,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "down", "s":
 				if m.payrollCursor < len(m.payrollStatements)-1 {
 					m.payrollCursor++
+				}
+
+			case "home", "g":
+				m.payrollCursor = 0
+
+			case "end", "G":
+				if len(m.payrollStatements) > 0 {
+					m.payrollCursor = len(m.payrollStatements) - 1
 				}
 			}
 

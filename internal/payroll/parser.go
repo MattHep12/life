@@ -15,11 +15,13 @@ import (
 )
 
 var (
-	periodStartPattern = regexp.MustCompile(`(?i)Period\s+Start\s+Date\s+(\d{2}/\d{2}/\d{4})`)
-	periodEndPattern   = regexp.MustCompile(`(?i)Period\s+End\s+Date\s+(\d{2}/\d{2}/\d{4})`)
-	payDatePattern     = regexp.MustCompile(`(?i)Pay\s+Date\s+(\d{2}/\d{2}/\d{4})`)
-	documentPattern    = regexp.MustCompile(`(?i)Document\s+(\d+)`)
-	paySummaryPattern  = regexp.MustCompile(`(?is)Pay\s+Summary.*?Current\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})`)
+	periodStartPattern       = regexp.MustCompile(`(?i)Period\s+Start\s+Date\s+(\d{2}/\d{2}/\d{4})`)
+	periodEndPattern         = regexp.MustCompile(`(?i)Period\s+End\s+Date\s+(\d{2}/\d{2}/\d{4})`)
+	payDatePattern           = regexp.MustCompile(`(?i)Pay\s+Date\s+(\d{2}/\d{2}/\d{4})`)
+	documentPattern          = regexp.MustCompile(`(?i)Document\s+(\d+)`)
+	paySummaryPattern        = regexp.MustCompile(`(?is)Pay\s+Summary.*?Current\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})`)
+	retirementPattern        = regexp.MustCompile(`(?i)(?:Bonus\s+401K\s+Pre|401K\s+Pretax)\s+\$?[\d,]+\.\d{2}\s+Yes\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})`)
+	retirementHistoryPattern = regexp.MustCompile(`(?i)(?:Bonus\s+401K\s+Pre|401K\s+Pretax)\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})`)
 )
 
 func ParsePDF(path string) (models.PayrollStatement, error) {
@@ -80,16 +82,48 @@ func ParseText(text string) (models.PayrollStatement, error) {
 		}
 	}
 
+	var employee401K, employer401K, employee401KYTD, employer401KYTD int64
+	retirementMatches := retirementPattern.FindAllStringSubmatch(text, -1)
+	if len(retirementMatches) == 0 {
+		retirementMatches = retirementHistoryPattern.FindAllStringSubmatch(text, -1)
+	}
+	for _, match := range retirementMatches {
+		employee, parseErr := parseMoney(match[1])
+		if parseErr != nil {
+			return models.PayrollStatement{}, fmt.Errorf("parse employee 401(k): %w", parseErr)
+		}
+		employeeYTD, parseErr := parseMoney(match[2])
+		if parseErr != nil {
+			return models.PayrollStatement{}, fmt.Errorf("parse employee 401(k) YTD: %w", parseErr)
+		}
+		employer, parseErr := parseMoney(match[3])
+		if parseErr != nil {
+			return models.PayrollStatement{}, fmt.Errorf("parse employer 401(k): %w", parseErr)
+		}
+		employerYTD, parseErr := parseMoney(match[4])
+		if parseErr != nil {
+			return models.PayrollStatement{}, fmt.Errorf("parse employer 401(k) YTD: %w", parseErr)
+		}
+		employee401K += employee
+		employer401K += employer
+		employee401KYTD += employeeYTD
+		employer401KYTD += employerYTD
+	}
+
 	return models.PayrollStatement{
-		DocumentNumber:  documentMatch[1],
-		PeriodStart:     periodStart,
-		PeriodEnd:       periodEnd,
-		PayDate:         payDate,
-		GrossCents:      amounts[0],
-		TaxableCents:    amounts[1],
-		TaxesCents:      amounts[2],
-		DeductionsCents: amounts[3],
-		NetCents:        amounts[4],
+		DocumentNumber:       documentMatch[1],
+		PeriodStart:          periodStart,
+		PeriodEnd:            periodEnd,
+		PayDate:              payDate,
+		GrossCents:           amounts[0],
+		TaxableCents:         amounts[1],
+		TaxesCents:           amounts[2],
+		DeductionsCents:      amounts[3],
+		NetCents:             amounts[4],
+		Employee401KCents:    employee401K,
+		Employer401KCents:    employer401K,
+		Employee401KYTDCents: employee401KYTD,
+		Employer401KYTDCents: employer401KYTD,
 	}, nil
 }
 

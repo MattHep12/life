@@ -2,7 +2,10 @@ package app
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+
+	"life/internal/models"
 )
 
 func formatMoney(amount float64) string {
@@ -32,4 +35,10 @@ func formatMoney(amount float64) string {
 
 func formatCents(cents int64) string {
 	return formatMoney(float64(cents) / 100)
+}
+
+func formatShares(micros int64) string {
+	whole := micros / models.ShareScale
+	fraction := micros % models.ShareScale
+	return strings.TrimRight(strings.TrimRight(strconv.FormatInt(whole, 10)+"."+fmt.Sprintf("%06d", fraction), "0"), ".")
 }

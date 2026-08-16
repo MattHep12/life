@@ -43,14 +43,23 @@ func main() {
 	if err := db.CreateTables(); err != nil {
 		fatal(err)
 	}
+	updated := false
 	if _, err := db.AddPayrollStatement(statement); err != nil {
 		if errors.Is(err, storage.ErrPayrollAlreadyImported) {
-			fatal(fmt.Errorf("this pay statement has already been imported"))
+			if err := db.UpdatePayrollStatement(statement); err != nil {
+				fatal(err)
+			}
+			updated = true
+		} else {
+			fatal(err)
 		}
-		fatal(err)
 	}
 
-	fmt.Println("Payroll statement imported successfully.")
+	if updated {
+		fmt.Println("Existing payroll statement updated successfully.")
+	} else {
+		fmt.Println("Payroll statement imported successfully.")
+	}
 }
 
 func printPreview(s models.PayrollStatement) {
@@ -62,6 +71,10 @@ func printPreview(s models.PayrollStatement) {
 	fmt.Printf("Taxes:       %s\n", formatCents(s.TaxesCents))
 	fmt.Printf("Deductions:  %s\n", formatCents(s.DeductionsCents))
 	fmt.Printf("Net pay:     %s\n", formatCents(s.NetCents))
+	fmt.Printf("401(k) employee: %s\n", formatCents(s.Employee401KCents))
+	fmt.Printf("401(k) employer: %s\n", formatCents(s.Employer401KCents))
+	fmt.Printf("401(k) employee YTD: %s\n", formatCents(s.Employee401KYTDCents))
+	fmt.Printf("401(k) employer YTD: %s\n", formatCents(s.Employer401KYTDCents))
 	fmt.Println("\nNames, addresses, employee IDs, SSNs, and bank details will not be saved.")
 }
 

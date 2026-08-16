@@ -17,8 +17,9 @@ func (d *Database) AddPayrollStatement(statement models.PayrollStatement) (int64
 		`INSERT INTO payroll_statements (
 			document_number, period_start, period_end, pay_date,
 			gross_cents, taxable_cents, taxes_cents, deductions_cents,
-			net_cents, source_filename
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			net_cents, employee_401k_cents, employer_401k_cents,
+			employee_401k_ytd_cents, employer_401k_ytd_cents, source_filename
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		statement.DocumentNumber,
 		statement.PeriodStart.Format("2006-01-02"),
 		statement.PeriodEnd.Format("2006-01-02"),
@@ -28,6 +29,10 @@ func (d *Database) AddPayrollStatement(statement models.PayrollStatement) (int64
 		statement.TaxesCents,
 		statement.DeductionsCents,
 		statement.NetCents,
+		statement.Employee401KCents,
+		statement.Employer401KCents,
+		statement.Employee401KYTDCents,
+		statement.Employer401KYTDCents,
 		statement.SourceFilename,
 	)
 	if err != nil {
@@ -44,11 +49,49 @@ func (d *Database) AddPayrollStatement(statement models.PayrollStatement) (int64
 	return id, nil
 }
 
+func (d *Database) UpdatePayrollStatement(statement models.PayrollStatement) error {
+	result, err := d.DB.Exec(`
+		UPDATE payroll_statements SET
+			period_start = ?, period_end = ?, pay_date = ?, gross_cents = ?,
+			taxable_cents = ?, taxes_cents = ?, deductions_cents = ?, net_cents = ?,
+			employee_401k_cents = ?, employer_401k_cents = ?,
+			employee_401k_ytd_cents = ?, employer_401k_ytd_cents = ?, source_filename = ?
+		WHERE document_number = ?`,
+		statement.PeriodStart.Format("2006-01-02"),
+		statement.PeriodEnd.Format("2006-01-02"),
+		statement.PayDate.Format("2006-01-02"),
+		statement.GrossCents,
+		statement.TaxableCents,
+		statement.TaxesCents,
+		statement.DeductionsCents,
+		statement.NetCents,
+		statement.Employee401KCents,
+		statement.Employer401KCents,
+		statement.Employee401KYTDCents,
+		statement.Employer401KYTDCents,
+		statement.SourceFilename,
+		statement.DocumentNumber,
+	)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf("payroll statement %s does not exist", statement.DocumentNumber)
+	}
+	return nil
+}
+
 func (d *Database) GetPayrollStatements() ([]models.PayrollStatement, error) {
 	rows, err := d.DB.Query(`
 		SELECT id, document_number, period_start, period_end, pay_date,
 			gross_cents, taxable_cents, taxes_cents, deductions_cents,
-			net_cents, source_filename, imported_at
+			net_cents, employee_401k_cents, employer_401k_cents,
+			employee_401k_ytd_cents, employer_401k_ytd_cents,
+			source_filename, imported_at
 		FROM payroll_statements
 		ORDER BY pay_date DESC, id DESC
 	`)
@@ -73,6 +116,10 @@ func (d *Database) GetPayrollStatements() ([]models.PayrollStatement, error) {
 			&statement.TaxesCents,
 			&statement.DeductionsCents,
 			&statement.NetCents,
+			&statement.Employee401KCents,
+			&statement.Employer401KCents,
+			&statement.Employee401KYTDCents,
+			&statement.Employer401KYTDCents,
 			&statement.SourceFilename,
 			&importedAt,
 		); err != nil {
@@ -103,6 +150,22 @@ func (d *Database) GetPayrollStatements() ([]models.PayrollStatement, error) {
 	}
 
 	return statements, nil
+}
+
+func (d *Database) DeletePayrollStatement(id int64) error {
+	result, err := d.DB.Exec(`DELETE FROM payroll_statements WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf("payroll statement %d does not exist", id)
+	}
+	return nil
 }
 
 func (d *Database) NetPayrollForMonth(year int, month int) (int64, error) {
