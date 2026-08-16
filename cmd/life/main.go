@@ -1,71 +1,42 @@
 package main
 
 import (
-	"fmt"
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
+	"time"
+
+	"life/internal/app"
+	"life/internal/storage"
 )
 
-type model struct {
-	cursor      int
-	choices     []string
-	currentView string
-}
-
-func (m model) Init() tea.Cmd {
-	return nil
-}
-
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-
-		case "up", "w":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-
-		case "down", "s":
-			if m.cursor < len(m.choices)-1 {
-				m.cursor++
-			}
-
-		case "enter":
-			m.currentView = m.choices[m.cursor]
-		}
-	}
-	return m, nil
-}
-
-func (m model) View() tea.View {
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "Current View: %s\n\n", m.currentView)
-
-	for i, choice := range m.choices {
-		prefix := "  "
-		if m.cursor == i {
-			prefix = "> "
-		}
-
-		fmt.Fprintf(&sb, "%s%s\n", prefix, choice)
-	}
-
-	return tea.View{
-		Content: sb.String(),
-	}
-}
-
 func main() {
-	m := model{
-		cursor:      0,
-		choices:     []string{"Dashboard", "Tasks", "Habits", "Finances", "Stats"},
-		currentView: "Dashboard",
+	db, err := storage.Open("life.db")
+	if err != nil {
+		panic(err)
 	}
+	defer db.Close()
+
+	if err := db.CreateTables(); err != nil {
+		panic(err)
+	}
+
+	accounts, err := db.GetAccounts()
+	if err != nil {
+		panic(err)
+	}
+	now := time.Now()
+	monthlyNetIncomeCents, err := db.NetPayrollForMonth(now.Year(), int(now.Month()))
+	if err != nil {
+		panic(err)
+	}
+	payrollStatements, err := db.GetPayrollStatements()
+	if err != nil {
+		panic(err)
+	}
+
+	m := app.NewModel(db, accounts, payrollStatements, monthlyNetIncomeCents)
+
 	p := tea.NewProgram(m)
+
 	if _, err := p.Run(); err != nil {
 		panic(err)
 	}
