@@ -36,5 +36,13 @@ go.work.sum
 *.db-shm
 *.db-wal
 
+# Personal financial source documents
+*.pdf
+*.csv
+
+# Python cache files
+__pycache__/
+*.pyc
+
 # Local application binary
 /life

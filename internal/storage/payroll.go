@@ -91,6 +91,7 @@ func (d *Database) GetPayrollStatements() ([]models.PayrollStatement, error) {
 			gross_cents, taxable_cents, taxes_cents, deductions_cents,
 			net_cents, employee_401k_cents, employer_401k_cents,
 			employee_401k_ytd_cents, employer_401k_ytd_cents,
+			base_pay_cents, overtime_cents, bonus_cents, payroll_stock_cents, other_earnings_cents,
 			source_filename, imported_at
 		FROM payroll_statements
 		ORDER BY pay_date DESC, id DESC
@@ -120,6 +121,11 @@ func (d *Database) GetPayrollStatements() ([]models.PayrollStatement, error) {
 			&statement.Employer401KCents,
 			&statement.Employee401KYTDCents,
 			&statement.Employer401KYTDCents,
+			&statement.BasePayCents,
+			&statement.OvertimeCents,
+			&statement.BonusCents,
+			&statement.PayrollStockCents,
+			&statement.OtherEarningsCents,
 			&statement.SourceFilename,
 			&importedAt,
 		); err != nil {

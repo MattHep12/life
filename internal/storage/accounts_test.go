@@ -18,7 +18,7 @@ func TestAccountCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, err := db.AddAccount(models.Account{Name: "Checking", Balance: 100.25})
+	id, err := db.AddAccount(models.Account{Name: "Checking", Balance: 100.25, Category: "cash"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func TestAccountCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(accounts) != 1 || accounts[0].ID != id || accounts[0].Balance != 250.75 {
+	if len(accounts) != 1 || accounts[0].ID != id || accounts[0].Balance != 250.75 || accounts[0].Category != "cash" {
 		t.Fatalf("unexpected accounts after update: %#v", accounts)
 	}
 

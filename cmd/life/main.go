@@ -18,6 +18,10 @@ func main() {
 	if err := db.CreateTables(); err != nil {
 		panic(err)
 	}
+	profile, err := db.GetProfile()
+	if err != nil {
+		panic(err)
+	}
 
 	accounts, err := db.GetAccounts()
 	if err != nil {
@@ -36,8 +40,27 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	spendingTransactions, err := db.GetSpendingTransactions()
+	if err != nil {
+		panic(err)
+	}
+	recurringExpenses, err := db.GetRecurringExpenses()
+	if err != nil {
+		panic(err)
+	}
+	projectionSettings, err := db.GetProjectionSettings()
+	if err != nil {
+		panic(err)
+	}
+	if profile != nil {
+		projectionSettings.BirthDate = profile.BirthDate
+	}
+	financialGoals, err := db.GetFinancialGoals()
+	if err != nil {
+		panic(err)
+	}
 
-	m := app.NewModel(db, accounts, payrollStatements, stockVests, monthlyNetIncomeCents)
+	m := app.NewModel(db, profile, accounts, payrollStatements, stockVests, spendingTransactions, recurringExpenses, projectionSettings, financialGoals, monthlyNetIncomeCents)
 
 	p := tea.NewProgram(m)
 

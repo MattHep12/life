@@ -8,9 +8,10 @@ import (
 
 func (d *Database) AddAccount(account models.Account) (int64, error) {
 	result, err := d.DB.Exec(
-		`INSERT INTO accounts (name, balance) VALUES (?, ?)`,
+		`INSERT INTO accounts (name, balance, category) VALUES (?, ?, ?)`,
 		account.Name,
 		account.Balance,
+		account.Category,
 	)
 	if err != nil {
 		return 0, err
@@ -26,7 +27,7 @@ func (d *Database) AddAccount(account models.Account) (int64, error) {
 
 func (d *Database) GetAccounts() ([]models.Account, error) {
 	rows, err := d.DB.Query(
-		`SELECT id, name, balance FROM accounts ORDER BY id`,
+		`SELECT id, name, balance, category FROM accounts ORDER BY id`,
 	)
 	if err != nil {
 		return nil, err
@@ -42,6 +43,7 @@ func (d *Database) GetAccounts() ([]models.Account, error) {
 			&account.ID,
 			&account.Name,
 			&account.Balance,
+			&account.Category,
 		)
 		if err != nil {
 			return nil, err
