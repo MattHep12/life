@@ -39,6 +39,13 @@ type Model struct {
 	payrollCursor        int
 	payrollDeleteMode    bool
 	payrollError         string
+	importMode           importMode
+	importKind           importKind
+	importPath           textinput.Model
+	importError          string
+	importMessage        string
+	pendingPayroll       *models.PayrollStatement
+	pendingStockVests    []models.StockVest
 	stockVests           []models.StockVest
 	spendingTransactions []models.SpendingTransaction
 	spendingCursor       int
@@ -89,6 +96,24 @@ const (
 	financeDeleteConfirmMode
 	financeFixedBillsMode
 	financeEditFixedBillMode
+)
+
+type importMode int
+
+const (
+	importNone importMode = iota
+	importChooseType
+	importEnterPath
+	importLoading
+	importConfirm
+	importResult
+)
+
+type importKind int
+
+const (
+	importPayroll importKind = iota
+	importStock
 )
 
 type menuItem struct {
@@ -159,6 +184,11 @@ func NewModel(
 	profileBirthDateInput.Prompt = "› "
 	profileBirthDateInput.SetWidth(42)
 
+	importPathInput := textinput.New()
+	importPathInput.Placeholder = `C:\Users\you\Downloads\statement.pdf`
+	importPathInput.Prompt = "› "
+	importPathInput.SetWidth(72)
+
 	currentView := dashboardView
 	if profile == nil {
 		currentView = profileSetupView
@@ -186,6 +216,7 @@ func NewModel(
 		accounts:             accounts,
 		accountName:          nameInput,
 		accountBalance:       balanceInput,
+		importPath:           importPathInput,
 		payrollStatements:    payrollStatements,
 		stockVests:           stockVests,
 		spendingTransactions: spendingTransactions,

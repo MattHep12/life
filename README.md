@@ -73,9 +73,11 @@ account numbers, employee IDs, and other identifying information.
 
 ## Import a payroll statement
 
-Payroll PDFs are parsed locally by a separate command. This currently requires
-the source repository and Go toolchain. The importer automatically uses the
-same database as Life, previews approved values, and asks for confirmation:
+Open **Finances → Payroll**, press `i`, choose **Payroll statement**, and paste
+the full path to the PDF. Life parses the document locally, previews approved
+values, and asks for confirmation before saving anything.
+
+Developers can perform the same import from the source repository:
 
 ```sh
 go run ./cmd/import-payroll "/path/to/pay-statement.pdf"
@@ -93,7 +95,10 @@ skip confirmation in a trusted automation.
 ## Import Schwab stock vesting data
 
 Save copied Schwab vesting history as a tab-separated file with its column
-headers, then run:
+headers. Open **Finances → Payroll**, press `i`, choose **Schwab stock vesting
+history**, and paste the full path to the TSV file.
+
+Developers can also run:
 
 ```sh
 go run ./cmd/import-stock "/path/to/schwab-vests.tsv"

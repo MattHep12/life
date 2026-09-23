@@ -26,6 +26,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.accountBalance.SetWidth(inputWidth)
 		m.profileName.SetWidth(inputWidth)
 		m.profileBirthDate.SetWidth(inputWidth)
+		m.importPath.SetWidth(min(88, max(30, msg.Width-12)))
+		return m, nil
+
+	case importParsedMsg:
+		m.handleImportParsed(msg)
 		return m, nil
 
 	case tea.KeyPressMsg:
@@ -35,6 +40,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if msg.String() == "esc" {
+			if m.importMode != importNone {
+				m.cancelImport()
+				return m, nil
+			}
 			if m.currentView == financesView && m.financeMode != financeListMode {
 				m.financeMode = financeListMode
 				m.financeError = ""
@@ -421,6 +430,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case payrollView:
+			if m.importMode != importNone {
+				return m.updateImportKey(msg)
+			}
 			if m.payrollDeleteMode {
 				switch msg.String() {
 				case "n", "q":
@@ -468,6 +480,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentView = spendingView
 			case "shift+tab":
 				m.currentView = financesView
+			case "i":
+				return m, m.beginImport()
 
 			case "d":
 				if len(m.payrollStatements) > 0 {

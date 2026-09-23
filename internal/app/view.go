@@ -723,9 +723,12 @@ func (m Model) visiblePayrollRange() (int, int) {
 
 func (m Model) renderPayrollView() string {
 	width := m.contentWidth()
+	if m.importMode != importNone {
+		return m.renderImportView()
+	}
 	if len(m.payrollStatements) == 0 {
-		empty := renderFinanceTabs(payrollView) + "\n\n" + panel(sectionStyle.Render("NO STATEMENTS YET")+"\n\n"+mutedStyle.Render("Use import-payroll to add your first pay statement."), width)
-		return m.shell("Finances", "Accounts, income, and spending in one place.", empty, help("tab", "next section", "q", "back", "esc", "quit"))
+		empty := renderFinanceTabs(payrollView) + "\n\n" + panel(sectionStyle.Render("NO STATEMENTS YET")+"\n\n"+mutedStyle.Render("Press i to import a payroll PDF or stock vesting file."), width)
+		return m.shell("Finances", "Accounts, income, and spending in one place.", empty, help("i", "import", "tab", "next section", "q", "back", "esc", "quit"))
 	}
 	if m.payrollDeleteMode {
 		statement := m.payrollStatements[m.payrollCursor]
@@ -864,7 +867,79 @@ func (m Model) renderPayrollView() string {
 			body += "\n\n" + chart
 		}
 	}
-	return m.shell("Finances", "Accounts, income, and spending in one place.", body, help("tab", "next section", "↑/↓", "navigate", "g/G", "first/last", "d", "delete", "q", "back", "esc", "quit"))
+	return m.shell("Finances", "Accounts, income, and spending in one place.", body, help("i", "import", "tab", "next section", "↑/↓", "navigate", "g/G", "first/last", "d", "delete", "q", "back", "esc", "quit"))
+}
+
+func (m Model) renderImportView() string {
+	width := m.contentWidth()
+	title := sectionStyle.Foreground(colorInfo).Render("IMPORT FINANCIAL DATA")
+	var content, footer string
+
+	switch m.importMode {
+	case importChooseType:
+		payrollLine := payrollRowStyle.Width(max(42, width-12)).Render("  Payroll statement (PDF)")
+		stockLine := payrollRowStyle.Width(max(42, width-12)).Render("  Schwab stock vesting history (TSV)")
+		if m.importKind == importPayroll {
+			payrollLine = selectedRowStyle.Foreground(colorSecondary).Width(max(42, width-12)).Render("› Payroll statement (PDF)")
+		} else {
+			stockLine = selectedRowStyle.Foreground(colorSecondary).Width(max(42, width-12)).Render("› Schwab stock vesting history (TSV)")
+		}
+		content = title + "\n\n" + mutedStyle.Render("Choose the type of local file you want Life to read.") + "\n\n" + payrollLine + "\n" + stockLine
+		footer = help("↑/↓", "select", "enter", "continue", "q/esc", "cancel")
+
+	case importEnterPath:
+		kind := "payroll PDF"
+		if m.importKind == importStock {
+			kind = "Schwab TSV"
+		}
+		content = title + "\n\n" + sectionStyle.Render("FILE PATH") + "\n" + inputBoxStyle.Render(m.importPath.View()) + "\n\n" + mutedStyle.Render("Paste the full path to the "+kind+". Quoted Windows paths are accepted.")
+		if m.importError != "" {
+			content += "\n\n" + errorStyle.Render("! "+m.importError)
+		}
+		footer = help("enter", "preview", "esc", "cancel")
+
+	case importLoading:
+		content = title + "\n\n" + valueStyle.Render("Reading file…") + "\n" + mutedStyle.Render(m.importPath.Value())
+		footer = help("esc", "cancel")
+
+	case importConfirm:
+		content = title + "\n\n" + sectionStyle.Foreground(colorGold).Render("IMPORT PREVIEW") + "\n\n"
+		if m.importKind == importPayroll && m.pendingPayroll != nil {
+			s := m.pendingPayroll
+			content += fmt.Sprintf("%-18s %s\n%-18s %s\n%-18s %s\n%-18s %s\n%-18s %s\n%-18s %s",
+				"Pay date", s.PayDate.Format("Jan 02, 2006"),
+				"Pay period", s.PeriodStart.Format("Jan 02")+" – "+s.PeriodEnd.Format("Jan 02, 2006"),
+				"Gross", formatCents(s.GrossCents),
+				"Taxes", formatCents(s.TaxesCents),
+				"Deductions", formatCents(s.DeductionsCents),
+				"Net", valueStyle.Render(formatCents(s.NetCents)))
+		} else {
+			var grossValue, grossShares, netShares int64
+			for _, vest := range m.pendingStockVests {
+				grossValue += vest.GrossValueCents
+				grossShares += vest.GrossSharesMicros
+				netShares += vest.NetSharesMicros
+			}
+			content += fmt.Sprintf("%-18s %d\n%-18s %s\n%-18s %s\n%-18s %s\n%-18s %s",
+				"Vest events", len(m.pendingStockVests),
+				"Gross vest value", formatCents(grossValue),
+				"Shares vested", formatShares(grossShares),
+				"Shares deposited", formatShares(netShares),
+				"Shares withheld", formatShares(grossShares-netShares))
+		}
+		content += "\n\n" + mutedStyle.Render("Only the previewed financial fields are saved to your local database.")
+		if m.importError != "" {
+			content += "\n\n" + errorStyle.Render("! "+m.importError)
+		}
+		footer = help("y/enter", "import", "n/q/esc", "cancel")
+
+	case importResult:
+		content = title + "\n\n" + valueStyle.Render("✓ "+m.importMessage)
+		footer = help("enter/q/esc", "return to payroll")
+	}
+
+	body := renderFinanceTabs(payrollView) + "\n\n" + activePanelStyle.Width(max(48, width-6)).Render(content)
+	return m.shell("Finances", "Import payroll and vested equity locally.", body, footer)
 }
 
 type namedSpendingTotal struct {
