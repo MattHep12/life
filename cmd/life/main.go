@@ -9,7 +9,11 @@ import (
 )
 
 func main() {
-	db, err := storage.Open("life.db")
+	databasePath, err := storage.DefaultPath()
+	if err != nil {
+		panic(err)
+	}
+	db, err := storage.Open(databasePath)
 	if err != nil {
 		panic(err)
 	}

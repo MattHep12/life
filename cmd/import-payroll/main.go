@@ -14,7 +14,11 @@ import (
 )
 
 func main() {
-	databasePath := flag.String("db", "life.db", "path to the Life SQLite database")
+	defaultDatabasePath, err := storage.DefaultPath()
+	if err != nil {
+		fatal(err)
+	}
+	databasePath := flag.String("db", defaultDatabasePath, "path to the Life SQLite database")
 	yes := flag.Bool("yes", false, "import without an interactive confirmation")
 	flag.Parse()
 

@@ -68,7 +68,7 @@ func (m Model) renderProfileSetupView() string {
 	width := m.contentWidth()
 	label := "YOUR NAME"
 	input := m.profileName.View()
-	instructions := "Create a private local profile. Your financial data stays in life.db and is never committed to Git."
+	instructions := "Create a private local profile. Your financial data stays in a local database on this computer and is never committed to Git."
 	if m.profileSetupStep == 1 {
 		label = "BIRTH DATE"
 		input = m.profileBirthDate.View()
